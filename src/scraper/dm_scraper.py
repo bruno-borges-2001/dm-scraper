@@ -1,10 +1,8 @@
 from typing import TypeVar, Optional, Callable
 
-from selenium import webdriver
-
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
-
+from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -13,6 +11,8 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import ElementClickInterceptedException
 
 from models.Product import Product
+
+from utils import get_webdriver_service
 
 import time
 
@@ -25,14 +25,7 @@ class CityNotFoundException(Exception):
 
 class DMScraper:
     def __init__(self):
-        self.options = None
         self.driver = None
-
-        self.setup_driver()
-
-    def setup_driver(self):
-        self.options = Options()
-        self.options.add_argument("--headless")
 
     def attempt_to_find_element(self, driver_or_element: WebDriver | WebElement, by: By, value: str, default_value: T = None) -> WebElement | T:
         elements = driver_or_element.find_elements(by, value)
@@ -49,14 +42,25 @@ class DMScraper:
     def element_exists(self, driver_or_element: WebDriver | WebElement, by: By, value: str):
         return self.attempt_to_find_element(driver_or_element, by, value) is not None
 
-    def scrape_city(self, city: str, *, opts: Optional[dict], callback: Optional[Callable[[list[Product]], None]] = None, retry=0):
+    def scrape_city(self, city_query: str, *, opts: Optional[dict], callback: Optional[Callable[[list[Product]], None]] = None, retry=0):
         products = []
         visited_stores = dict()
         store_index = 0
 
         include_closed_stores = opts.get("include_closed_stores", False)
 
-        self.driver = webdriver.Chrome(options=self.options, keep_alive=True)
+        print("Initializing driver")
+
+        options = Options()
+        options.add_argument('--disable-gpu')
+        options.add_argument("--headless")
+
+        service = get_webdriver_service()
+        try:
+            self.driver = webdriver.Chrome(options=options, service=service)
+        except Exception as e:
+            print(e)
+
         driver = self.driver
         driver.get("https://www.deliverymuch.com.br/")
 
@@ -64,7 +68,7 @@ class DMScraper:
 
         search_input = driver.find_element(By.ID, "city")
 
-        for c in city:
+        for c in city_query:
             search_input.send_keys(c)
             time.sleep(0.2)
 
@@ -93,6 +97,11 @@ class DMScraper:
         while True:
             try:
                 self.wait_for_element(By.CLASS_NAME, "company-list__item")
+
+                city = driver.find_element(
+                    By.CLASS_NAME,
+                    "city-info__title"
+                ).text
             except:
                 break
 

@@ -1,9 +1,24 @@
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
 from models.Product import product_column_map
-import pandas as pd
-import streamlit as st
 from functools import wraps
 
+import streamlit as st
+import pandas as pd
+
 ALL_KEYWORD = "Todos"
+
+
+@st.cache_resource(show_spinner=False)
+def get_service_path() -> str:
+    return ChromeDriverManager().install()
+
+
+def get_webdriver_service() -> Service:
+    service = Service(
+        executable_path=get_service_path(),
+    )
+    return service
 
 
 def container(attr_name):
