@@ -15,39 +15,8 @@ A comprehensive data analysis and visualization tool that combines web scraping 
 ### Prerequisites
 
 - Python 3.8 or higher
-- [Poetry](https://python-poetry.org/docs/#installation) for dependency management
-
-### Installation Steps
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/data-analysis-tool.git
-   cd data-analysis-tool
-   ```
-
-2. Install dependencies using Poetry:
-   ```bash
-   poetry install
-   ```
-
-3. Activate the Poetry environment:
-   ```bash
-   poetry shell
-   ```
 
 ## Usage
-
-### Command Line Interface
-
-The scraper and processor can be used directly from the command line:
-
-```bash
-# Run the scraper to collect data
-python -m src.scraper.scraper --url "https://example.com" --output "data.csv"
-
-# Process data using the analysis module
-python -m src.analysis.processor --input "data.csv" --clean --analyze
-```
 
 ### Streamlit UI
 
@@ -86,9 +55,7 @@ The UI provides the following features:
 
 3. Install development dependencies:
    ```bash
-   pip install -e ".[dev]"
-   # OR with Poetry
-   poetry install --with dev
+   pip install -t requirements.txt
    ```
 
 ### Code Formatting and Linting

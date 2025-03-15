@@ -12,7 +12,7 @@ from selenium.webdriver.common.by import By
 
 from selenium.common.exceptions import ElementClickInterceptedException
 
-from src.models.Product import Product
+from models.Product import Product
 
 import time
 

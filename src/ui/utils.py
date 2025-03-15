@@ -1,4 +1,4 @@
-from src.models.Product import product_column_map
+from models.Product import product_column_map
 import pandas as pd
 import streamlit as st
 from functools import wraps

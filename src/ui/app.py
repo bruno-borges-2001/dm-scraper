@@ -4,8 +4,8 @@ import traceback
 import io
 import pandas as pd
 import streamlit as st
-from src.models.DfInfo import DfInfo
-from src.scraper.main import retrieve_data
+from models.DfInfo import DfInfo
+from scraper.main import retrieve_data
 import math
 
 

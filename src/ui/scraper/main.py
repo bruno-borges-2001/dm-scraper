@@ -1,8 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
-from src.scraper.dm_scraper import DMScraper, CityNotFoundException
+from scraper.dm_scraper import DMScraper, CityNotFoundException
 from threading import Lock
 from streamlit.runtime.scriptrunner import add_script_run_ctx
-import streamlit as st
 
 
 def get_city_data(city, opts, callback):
