@@ -109,3 +109,5 @@ docs/_build/
 docs/api/
 
 
+.qodo
+build_resources

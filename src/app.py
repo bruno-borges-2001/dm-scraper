@@ -20,6 +20,14 @@ class App:
 
         st.title("DM Scraper")
 
+        hide_streamlit_style = """
+        <style>
+        #MainMenu, .stAppToolbar, footer {visibility: hidden;}
+        <style>
+        """
+
+        st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
         if 'df' not in st.session_state:
             st.session_state.df = pd.DataFrame()
 
