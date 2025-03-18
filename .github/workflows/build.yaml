@@ -41,16 +41,13 @@ jobs:
           filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
         run: mv dist/${{ env.original_filename }} dist/${{ env.filename }}
 
-      - name: Debug
-        run: ls dist
-
       - name: Upload Executable
         uses: actions/upload-artifact@v4
         env:
           filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
         with:
           name: ${{ env.filename }}
-          path: dist/${{env.filename}}"
+          path: dist/${{env.filename}}
 
   # build-windows:
   #   runs-on: windows-latest
