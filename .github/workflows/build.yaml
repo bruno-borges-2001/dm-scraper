@@ -138,7 +138,7 @@ jobs:
         with:
           files: |
             dm-scraper-windows-latest.exe
-            dm-scraper-linux-latest
+            dm-scraper-ubuntu-latest
             dm-scraper-macos-latest
         env:
           GITHUB_TOKEN: ${{ secrets.DM_SCRAPER_GITHUB_TOKEN }}
