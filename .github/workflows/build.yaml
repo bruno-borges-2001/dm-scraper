@@ -37,7 +37,7 @@ jobs:
 
       - name: Rename Executable to include OS
         env:
-          original_filename: dm-scraper${{ startsWith(matrix.runs-on, 'windows') && '.exe' || startsWith(matrix.runs-on, 'mac') && '.app' || ''}}
+          original_filename: dm-scraper${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
           filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || startsWith(matrix.runs-on, 'mac') && '.app' || ''}}
         run: mv dist/${{ env.original_filename }} dist/${{ env.filename }}
 
