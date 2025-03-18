@@ -71,7 +71,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dm-scraper-windows-latest.exe.zip
+            dm-scraper-windows-latest.exe
             dm-scraper-ubuntu-latest.zip
             dm-scraper-macos-latest.zip
         env:
