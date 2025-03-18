@@ -37,90 +37,17 @@ jobs:
 
       - name: Rename Executable to include OS
         env:
-          original_filename: dm-scraper${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
-          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
+          original_filename: dm-scraper${{ startsWith(matrix.runs-on, 'windows') && '.exe' || startsWith(matrix.runs-on, 'mac') && '.app' || ''}}
+          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || startsWith(matrix.runs-on, 'mac') && '.app' || ''}}
         run: mv dist/${{ env.original_filename }} dist/${{ env.filename }}
 
       - name: Upload Executable
         uses: actions/upload-artifact@v4
         env:
-          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
+          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || startsWith(matrix.runs-on, 'mac') && '.app' || ''}}
         with:
           name: ${{ env.filename }}
           path: dist/${{env.filename}}
-
-  # build-windows:
-  #   runs-on: windows-latest
-  #   steps:
-  #     - name: Checkout Repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.12'
-
-  #     - name: Install Dependencies
-  #       run: pip install -r requirements.txt
-
-  #     - name: Set PYTHON_PATH Environment Variable
-  #       run: echo "PYTHON_PATH=$env:pythonLocation\Lib" >> $env:GITHUB_ENV
-
-  #     - name: Build Windows Executable
-  #       run: pyinstaller launcher.spec --clean
-
-  #     - name: Upload Windows Executable
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: dm-scraper-windows.exe
-  #         path: dist/dm-scraper.exe
-
-
-  # build-linux:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout Repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.12'
-
-  #     - name: Install Dependencies
-  #       run: pip install -r requirements.txt
-
-  #     - name: Build Linux Executable
-  #       run: PYTHON_PATH=${{ env.pythonLocation }}/lib/python3.12 pyinstaller launcher.spec --clean
-
-  #     - name: Upload Linux Executable
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: dm-scraper-linux
-  #         path: dist/dm-scraper
-
-  # build-macos:
-  #   runs-on: macos-latest
-  #   steps:
-  #     - name: Checkout Repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.12'
-
-  #     - name: Install Dependencies
-  #       run: pip install -r requirements.txt
-
-  #     - name: Build macOS Executable
-  #       run: PYTHON_PATH=${{ env.pythonLocation }}/lib/python3.12 pyinstaller launcher.spec --clean
-
-  #     - name: Upload macOS Executable
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: dm-scraper-macos
-  #         path: dist/dm-scraper
 
   release:
     needs: [build]
@@ -139,6 +66,6 @@ jobs:
           files: |
             dm-scraper-windows-latest.exe
             dm-scraper-ubuntu-latest
-            dm-scraper-macos-latest
+            dm-scraper-macos-latest.app
         env:
           GITHUB_TOKEN: ${{ secrets.DM_SCRAPER_GITHUB_TOKEN }}
