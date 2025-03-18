@@ -127,8 +127,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dm-scraper-windows.exe
-            dm-scraper-linux
-            dm-scraper-macos
+            dm-scraper-windows-latest.exe
+            dm-scraper-linux-latest
+            dm-scraper-macos-latest
         env:
           GITHUB_TOKEN: ${{ secrets.DM_SCRAPER_GITHUB_TOKEN }}
