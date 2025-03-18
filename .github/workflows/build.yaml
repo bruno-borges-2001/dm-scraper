@@ -38,16 +38,21 @@ jobs:
       - name: Rename Executable to include OS
         env:
           original_filename: dm-scraper${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
-          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || startsWith(matrix.runs-on, 'mac') && '.app' || ''}}
+          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
         run: mv dist/${{ env.original_filename }} dist/${{ env.filename }}
+
+      - name: Zip Executable
+        env:
+          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
+        run: zip -r dist/${{ env.filename }}.zip dist/${{ env.filename }}
 
       - name: Upload Executable
         uses: actions/upload-artifact@v4
         env:
-          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || startsWith(matrix.runs-on, 'mac') && '.app' || ''}}
+          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
         with:
-          name: ${{ env.filename }}
-          path: dist/${{env.filename}}
+          name: ${{ env.filename }}.zip
+          path: dist/${{env.filename}}.zip
 
   release:
     needs: [build]
@@ -64,8 +69,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dm-scraper-windows-latest.exe
-            dm-scraper-ubuntu-latest
-            dm-scraper-macos-latest.app
+            dm-scraper-windows-latest.exe.zip
+            dm-scraper-ubuntu-latest.zip
+            dm-scraper-macos-latest.zip
         env:
           GITHUB_TOKEN: ${{ secrets.DM_SCRAPER_GITHUB_TOKEN }}
