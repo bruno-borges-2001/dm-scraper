@@ -42,17 +42,18 @@ jobs:
         run: mv dist/${{ env.original_filename }} dist/${{ env.filename }}
 
       - name: Zip Executable
+        if: ${{ matrix.runs-on != 'windows-latest' }}
         env:
           filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
-        run: zip -r dist/${{ env.filename }}.zip dist/${{ env.filename }}
+        run: zip dist/${{ env.filename }}.zip dist/${{ env.filename }}
 
       - name: Upload Executable
         uses: actions/upload-artifact@v4
         env:
-          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}
+          filename: dm-scraper-${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || '.zip'}}
         with:
-          name: ${{ env.filename }}.zip
-          path: dist/${{env.filename}}.zip
+          name: ${{ env.filename }}
+          path: dist/${{env.filename}}
 
   release:
     needs: [build]
