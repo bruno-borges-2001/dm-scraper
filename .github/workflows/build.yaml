@@ -1,6 +1,9 @@
 name: Build Python Executables
 
-on: [push]  # Runs on every push
+on:   
+  push:
+    tags:
+      - "v*.*.*"
 
 jobs:
   build-windows:
