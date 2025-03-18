@@ -27,8 +27,13 @@ jobs:
         if: ${{ matrix.runs-on == 'windows-latest' }}
         run: echo "PYTHON_PATH=$env:pythonLocation\Lib" >> $env:GITHUB_ENV
 
-      - name: Build Executable
+      - name: Build Windows Executable
+        if: ${{ matrix.runs-on == 'windows-latest' }}
         run: pyinstaller launcher.spec --clean
+
+      - name: Build Executable
+        if: ${{ !(matrix.runs-on == 'windows-latest') }}
+        run: PYTHON_PATH=${{ env.pythonLocation }}/lib/python3.12 pyinstaller launcher.spec --clean
       
       - name: Rename Executable to include OS
         run: mv dist/dm-scraper${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}" dist/dm-scraper${{ matrix.runs-on }}${{ startsWith(matrix.runs-on, 'windows') && '.exe' || ''}}"
