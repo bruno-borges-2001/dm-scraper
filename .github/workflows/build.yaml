@@ -80,20 +80,25 @@ jobs:
       - name: Build macOS Executable
         run: PYTHON_PATH=${{ env.pythonLocation }}/lib/python3.12 pyinstaller launcher.spec --clean
 
-      - name: Create DMG
-        run: |
-          create-dmg \
-            --volname "DMScraper" \
-            --window-pos 200 120 \
-            --window-size 600 300 \
-            --icon-size 100 \
-            --hide-extension "dm-scraper.app" \
-            --app-drop-link 425 120 \
-            "dist/dm-scraper.dmg" \
-            "dist/dmg/"
-
       - name: Upload macOS Executable
         uses: actions/upload-artifact@v4
         with:
           name: dm-scraper-macos
-          path: dist/dm-scraper.dmg
+          path: dist/dm-scraper
+
+  release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Release with Notes
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/dm-scraper-windows.exe
+            dist/dm-scraper-linux
+            dist/dm-scraper-macos
+        env:
+          GITHUB_TOKEN: ${{ secrets.DM_SCRAPER_GITHUB_TOKEN }}
