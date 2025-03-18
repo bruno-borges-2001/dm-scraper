@@ -26,6 +26,13 @@ jobs:
       - name: Build Windows Executable
         run: pyinstaller launcher.spec --clean
 
+      - name: Upload Windows Executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: dm-scraper-windows.exe
+          path: dist/dm-scraper.exe
+
+
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -43,23 +50,18 @@ jobs:
       - name: Build Linux Executable
         run: PYTHON_PATH=${{ env.pythonLocation }}/lib/python3.12 pyinstaller launcher.spec --clean
 
+      - name: Upload Linux Executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: dm-scraper-linux
+          path: dist/dm-scraper
+
   build-macos:
     runs-on: macos-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Homebrew
-        id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Cache Homebrew Bundler create-dmg
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.set-up-homebrew.outputs.gems-path }}
-          key: ${{ runner.os }}-create-dmg-${{ steps.set-up-homebrew.outputs.gems-hash }}
-          restore-keys: ${{ runner.os }}-create-dmg-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -71,6 +73,12 @@ jobs:
       - name: Build macOS Executable
         run: PYTHON_PATH=${{ env.pythonLocation }}/lib/python3.12 pyinstaller launcher.spec --clean
 
+      - name: Upload macOS Executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: dm-scraper-macos
+          path: dist/dm-scraper
+
   release:
     needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
@@ -78,10 +86,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dist/*
+            dm-scraper-windows.exe
+            dm-scraper-linux
+            dm-scraper-macos
         env:
           GITHUB_TOKEN: ${{ secrets.DM_SCRAPER_GITHUB_TOKEN }}
