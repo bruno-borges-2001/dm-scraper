@@ -54,6 +54,7 @@ jobs:
         with:
           name: ${{ env.filename }}
           path: dist/${{env.filename}}
+          retention-days: 1
 
   release:
     needs: [build]
