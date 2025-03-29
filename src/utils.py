@@ -83,9 +83,9 @@ def format_df(df: pd.DataFrame):
         product_column_map['discount_percentage']: "{:.0f}%",
     }
 
-    return new_df.style \
-        .format(format_dict) \
-        .apply(format_row, axis=1)
+    styler = new_df.style.format(format_dict).apply(format_row, axis=1)
+
+    return new_df, styler
 
 
 def get_rating_string(value: float | None):
@@ -117,9 +117,9 @@ def format_cdf(df: pd.DataFrame):
 
     new_df.rename(columns=company_column_map, inplace=True)
 
-    new_df.style.apply(format_row, axis=1)
+    styler = new_df.style.apply(format_row, axis=1)
 
-    return new_df
+    return new_df, styler
 
 
 def apply_filters(df: pd.DataFrame, filters: dict):
@@ -131,11 +131,8 @@ def apply_filters(df: pd.DataFrame, filters: dict):
 
         if isinstance(value, list):
             if len(value) > 0:
-                if new_df[column].dtype == 'object':
-                    new_df = new_df[new_df[column].apply(
-                        lambda x: any(item in value for item in x))]
-                else:
-                    new_df = new_df[new_df[column].isin(value)]
+                new_df = new_df[new_df[column].apply(
+                    lambda x: any(item in value for item in x) if isinstance(x, list) else x in value)]
 
         if isinstance(value, tuple):
             if len(value) != 2:

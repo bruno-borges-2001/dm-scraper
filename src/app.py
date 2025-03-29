@@ -170,9 +170,11 @@ class App:
                     "URL da Imagem": st.column_config.ImageColumn("Logo", pinned=True, width=50),
                 }
 
+                _, styler = format_df(self.df_info.df.head(
+                    min(10, self.df_info.df.size)))
+
                 st.dataframe(
-                    format_df(self.df_info.df.head(
-                        min(10, self.df_info.df.size))),
+                    styler,
                     hide_index=True,
                     use_container_width=True,
                     column_config=column_config
@@ -233,8 +235,10 @@ class App:
                     "Logo": st.column_config.ImageColumn("Logo", pinned=True),
                 }
 
+                _, styler = format_cdf(display_table)
+
                 st.dataframe(
-                    format_cdf(display_table),
+                    styler,
                     hide_index=True,
                     use_container_width=True,
                     column_config=column_config
@@ -297,8 +301,10 @@ class App:
                     "URL da Imagem": st.column_config.ImageColumn("Logo", pinned=True),
                 }
 
+                _, styler = format_df(display_table)
+
                 st.dataframe(
-                    format_df(display_table),
+                    styler,
                     hide_index=True,
                     use_container_width=True,
                     column_config=column_config
@@ -330,11 +336,11 @@ class App:
             if selected_df == "Produtos":
                 raw_df = self.df.copy()
                 raw_filters = st.session_state.product_filters
-                def format_fn(df): return format_df(df)
+                def format_fn(df): return format_df(df)[1]
             else:
                 raw_df = self.cdf.copy()
                 raw_filters = st.session_state.company_filters
-                def format_fn(df): return format_cdf(df)
+                def format_fn(df): return format_cdf(df)[1]
 
             # Seleção de formato de arquivo
             export_format = st.selectbox(
