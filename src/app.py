@@ -198,7 +198,7 @@ class App:
         product_filters = {
             "city": [],
             "category": [],
-            "company_name": st.session_state.selected_companies or [],
+            "company_name": [],
             "original_price": original_price_filter_range,
             "final_price": final_price_filter_range
         }
