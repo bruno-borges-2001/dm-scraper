@@ -2,11 +2,44 @@ from consts import GlobalState
 from utils import format_df, format_cdf, container, apply_filters, ALL_KEYWORD
 import traceback
 import io
-import pandas as pd
+import polars as pl
 import streamlit as st
+from models.Product import Product, product_column_map
+from models.Company import Company
 from models.DfInfo import DfInfo
 from scraper.main import retrieve_data
-import math
+from datetime import datetime
+
+product_column_config = {
+    "Preço Original": st.column_config.NumberColumn(
+        format="R$ %.2f",
+    ),
+    "Preço Final": st.column_config.NumberColumn(
+        format="R$ %.2f",
+    ),
+    "Desconto (%)": st.column_config.NumberColumn(
+        format="percent",
+    ),
+    "URL da Empresa": st.column_config.LinkColumn(
+        display_text="Ver Empresa"
+    ),
+    "URL da Imagem": st.column_config.ImageColumn(
+        "Logo",
+        pinned=True,
+        width=50
+    ),
+}
+
+company_column_config = {
+    "URL da Empresa": st.column_config.LinkColumn(
+        "URL da Empresa",
+        display_text="Ver Empresa"
+    ),
+    "Logo": st.column_config.ImageColumn(
+        "Logo",
+        pinned=True
+    ),
+}
 
 
 class App:
@@ -28,16 +61,16 @@ class App:
         st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
         if 'df' not in st.session_state:
-            st.session_state.df = pd.DataFrame()
+            st.session_state.df = pl.DataFrame()
 
         if 'cdf' not in st.session_state:
-            st.session_state.cdf = pd.DataFrame()
+            st.session_state.cdf = pl.DataFrame()
 
         self.include_closed_stores = False
 
-        self.df = st.session_state.df
-        self.cdf = st.session_state.cdf
-        self.state = GlobalState.FINISHED if self.df.size > 0 else GlobalState.IDLE
+        self.df: pl.DataFrame = st.session_state.df
+        self.cdf: pl.DataFrame = st.session_state.cdf
+        self.state: GlobalState = GlobalState.FINISHED if not self.df.is_empty() else GlobalState.IDLE
         self.df_info = DfInfo(self.df)
 
     def handle_fetch_data_click(self):
@@ -45,17 +78,12 @@ class App:
         self.render_data_fetch_section()
 
         try:
-            def update_companies(companies):
-                self.cdf = pd.concat(
-                    [self.cdf, pd.DataFrame(companies)],
-                    ignore_index=True,
-                )
+            def update_companies(companies: list[Company]):
+                self.cdf = self.cdf.vstack(pl.DataFrame(companies))
 
-            def update_products(products):
-                self.df_info.df = pd.concat(
-                    [self.df_info.df, pd.DataFrame(products)],
-                    ignore_index=True,
-                )
+            def update_products(products: list[Product]):
+                self.df_info.df = self.df_info.df.vstack(
+                    pl.DataFrame(products))
 
                 self.render_data_preview_section()
 
@@ -70,7 +98,7 @@ class App:
                 update_company_callback=update_companies
             )
 
-            self.df = self.df_info.df.copy()
+            self.df = self.df_info.df.clone()
             st.session_state.df = self.df
             st.session_state.cdf = self.cdf
         except Exception as e:
@@ -91,8 +119,7 @@ class App:
 
         with c1:
             with st.form("city_form", clear_on_submit=True):
-                city_input = st.text_input(
-                    "Digite o nome da cidade")
+                city_input = st.text_input("Digite o nome da cidade")
                 if st.form_submit_button(label="Adicionar Cidade", use_container_width=True):
                     if city_input:
                         city = city_input.upper()
@@ -159,25 +186,19 @@ class App:
                 st.write(
                     f"Empresas visitadas: {self.df_info.company_visited()}")
                 st.write(
-                    f"Uso de Memória: {self.df_info.memory_usage()}")
+                    f"Uso de memória: {self.df_info.memory_usage()} MB"
+                )
 
             with col2:
                 st.subheader("Pré-visualização dos Dados")
 
-                column_config = {
-                    "URL da Empresa": st.column_config.LinkColumn(
-                        "URL da Empresa", display_text="Ver Empresa"),
-                    "URL da Imagem": st.column_config.ImageColumn("Logo", pinned=True, width=50),
-                }
-
-                _, styler = format_df(self.df_info.df.head(
-                    min(10, self.df_info.df.size)))
-
                 st.dataframe(
-                    styler,
+                    format_df(
+                        self.df_info.df.head(10)
+                    ),
                     hide_index=True,
                     use_container_width=True,
-                    column_config=column_config
+                    column_config=product_column_config
                 )
 
     @container("analysis")
@@ -187,22 +208,23 @@ class App:
 
         st.header("📊 Análise de Dados", anchor="data-analysis")
 
-        original_price_filter_range = (
-            float(math.floor(self.df['original_price'].min())),
-            float(math.ceil(self.df['original_price'].max()))
-        )
-
-        final_price_filter_range = (
-            float(math.floor(self.df['final_price'].min())),
-            float(math.ceil(self.df['final_price'].max()))
-        )
+        op_price_min, op_price_max, fp_price_min, fp_price_max = self.df.select(
+            pl.col('original_price').min().floor().cast(
+                pl.Float32).alias('op_price_min'),
+            pl.col('original_price').max().ceil().cast(
+                pl.Float32).alias('op_price_max'),
+            pl.col('final_price').min().floor().cast(
+                pl.Float32).alias('fp_price_min'),
+            pl.col('final_price').max().ceil().cast(
+                pl.Float32).alias('fp_price_max'),
+        ).row(0)
 
         product_filters = {
             "city": [],
             "category": [],
             "company_name": [],
-            "original_price": original_price_filter_range,
-            "final_price": final_price_filter_range
+            "original_price": (op_price_min, op_price_max),
+            "final_price": (fp_price_min, fp_price_max)
         }
 
         company_filters = {
@@ -212,55 +234,70 @@ class App:
 
         product_tab, company_tab = st.tabs(["Produtos", "Empresas"])
 
-        if (self.cdf.size > 0):
+        if not self.cdf.is_empty():
             with company_tab:
                 c1, c2 = st.columns(2)
 
+                unique_cities = self.cdf.select(
+                    pl.col('city').unique()
+                ).to_series().to_list()
+
+                unique_banners = self.cdf.select(
+                    pl.col('banners').explode().unique()
+                ).to_series().to_list()
+
                 with c1:
+
                     company_filters['city'] = st.multiselect(
                         "Selecione a cidade",
-                        list(self.cdf['city'].unique()),
+                        unique_cities,
                         key="company_city_filter"
                     )
 
                 with c2:
                     company_filters['banners'] = st.multiselect(
-                        "Selecione os banners", list(filter(bool, self.cdf.explode('banners')['banners'].unique())))
+                        "Selecione os banners",
+                        unique_banners
+                    )
 
                 display_table = apply_filters(self.cdf, company_filters)
 
-                column_config = {
-                    "URL da Empresa": st.column_config.LinkColumn(
-                        "URL da Empresa", display_text="Ver Empresa"),
-                    "Logo": st.column_config.ImageColumn("Logo", pinned=True),
-                }
-
-                _, styler = format_cdf(display_table)
-
                 st.dataframe(
-                    styler,
+                    format_cdf(display_table),
                     hide_index=True,
                     use_container_width=True,
-                    column_config=column_config
+                    column_config=company_column_config
                 )
 
                 st.session_state.company_filters = company_filters
 
-        if self.df.size > 0:
+        if not self.df.is_empty():
             with product_tab:
                 c1, c2, c3 = st.columns(3)
+
+                unique_cities = self.df.select(
+                    pl.col('city').unique()
+                ).to_series().to_list()
+
+                unique_categories = self.df.select(
+                    pl.col('category').unique()
+                ).to_series().to_list()
+
+                unique_companies = self.df.select(
+                    pl.col('company_name').unique()
+                ).to_series().to_list()
 
                 with c1:
                     product_filters['city'] = st.multiselect(
                         "Selecione a cidade",
-                        list(self.df['city'].unique()),
+                        unique_cities,
                         key="product_city_filter"
                     )
 
                 with c2:
                     product_filters["category"] = st.multiselect(
                         "Selecione a categoria",
-                        list(self.df['category'].unique())
+                        unique_categories
                     )
 
                 with c3:
@@ -269,7 +306,7 @@ class App:
 
                     product_filters["company_name"] = container.multiselect(
                         "Selecione a empresa",
-                        list(self.df['company_name'].unique()),
+                        unique_companies,
                         product_filters["company_name"]
                     )
 
@@ -278,8 +315,8 @@ class App:
                 with col1:
                     product_filters['original_price'] = st.slider(
                         "Preço original",
-                        min_value=original_price_filter_range[0],
-                        max_value=original_price_filter_range[1],
+                        min_value=op_price_min,
+                        max_value=op_price_max,
                         value=product_filters['original_price'],
                         step=0.1
                     )
@@ -287,27 +324,19 @@ class App:
                 with col2:
                     product_filters['final_price'] = st.slider(
                         "Preço Final",
-                        min_value=final_price_filter_range[0],
-                        max_value=final_price_filter_range[1],
+                        min_value=fp_price_min,
+                        max_value=fp_price_max,
                         value=product_filters['final_price'],
                         step=0.1
                     )
 
                 display_table = apply_filters(self.df, product_filters)
 
-                column_config = {
-                    "URL da Empresa": st.column_config.LinkColumn(
-                        "URL da Empresa", display_text="Ver Empresa"),
-                    "URL da Imagem": st.column_config.ImageColumn("Logo", pinned=True),
-                }
-
-                _, styler = format_df(display_table)
-
                 st.dataframe(
-                    styler,
+                    format_df(display_table),
                     hide_index=True,
                     use_container_width=True,
-                    column_config=column_config
+                    column_config=product_column_config
                 )
 
                 st.session_state.product_filters = product_filters
@@ -317,13 +346,13 @@ class App:
         if self.state < GlobalState.FINISHED:
             return
 
-        SHOULD_FORMAT_DF_FILE_FORMATS = ["Excel", "HTML", "Parquet"]
+        SHOULD_FORMAT_DF_FILE_FORMATS = ["Excel", "HTML"]
 
         st.header("💾 Exportação de Dados", anchor="data-export")
 
         raw_df = None
 
-        if self.df.size > 0:
+        if not self.df.is_empty():
             selected_df = st.selectbox(
                 "Selecione quais dados exportar",
                 ["Produtos", "Empresas"],
@@ -331,16 +360,24 @@ class App:
             )
 
             export_filtered = st.checkbox(
-                "Exportar dados filtrados", value=False)
+                "Exportar dados filtrados",
+                value=False
+            )
 
             if selected_df == "Produtos":
-                raw_df = self.df.copy()
+                raw_df = format_df(self.df.clone()).to_pandas()
                 raw_filters = st.session_state.product_filters
-                def format_fn(df): return format_df(df)[1]
+
+                def format_fn(df): return df.style.format({
+                    product_column_map['original_price']: "R$ {:.2f}",
+                    product_column_map['final_price']: "R$ {:.2f}",
+                    product_column_map['discount_percentage']: "{:.0f}%",
+                })
             else:
-                raw_df = self.cdf.copy()
+                raw_df = format_cdf(self.cdf.clone()).to_pandas()
                 raw_filters = st.session_state.company_filters
-                def format_fn(df): return format_cdf(df)[1]
+
+                def format_fn(df): return df.style
 
             # Seleção de formato de arquivo
             export_format = st.selectbox(
@@ -391,39 +428,59 @@ class App:
                     buffer = io.BytesIO()
 
                     if export_format == "CSV":
-                        raw_df.to_csv(buffer, sep=delimiter,
-                                      index=include_index, encoding=encoding)
+                        raw_df.to_csv(
+                            buffer,
+                            sep=delimiter,
+                            index=include_index,
+                            encoding=encoding
+                        )
+
                         file_extension = "csv"
                         mime_type = "text/csv"
 
                     elif export_format == "Excel":
                         raw_df.to_excel(
-                            buffer, sheet_name=sheet_name, index=include_index, engine="openpyxl")
+                            buffer,
+                            sheet_name=sheet_name,
+                            index=include_index,
+                            engine="openpyxl"
+                        )
+
                         file_extension = "xlsx"
                         mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
                     elif export_format == "JSON":
-                        raw_df.to_json(buffer, orient=orient,
-                                       date_format=date_format)
+                        raw_df.to_json(
+                            buffer,
+                            orient=orient,
+                            date_format=date_format
+                        )
+
                         file_extension = "json"
                         mime_type = "application/json"
 
                     elif export_format == "Parquet":
                         compression_arg = None if compression == "none" else compression
                         raw_df.to_parquet(
-                            buffer, compression=compression_arg)
+                            buffer,
+                            compression=compression_arg
+                        )
+
                         file_extension = "parquet"
                         mime_type = "application/octet-stream"
 
                     elif export_format == "HTML":
                         html_content = raw_df.to_html(index=False)
                         buffer.write(html_content.encode())
+
                         file_extension = "html"
                         mime_type = "text/html"
 
                     # Preparar botão de download
                     buffer.seek(0)
-                    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
                     st.download_button(
                         label=f"Baixar arquivo {export_format}",
                         data=buffer,

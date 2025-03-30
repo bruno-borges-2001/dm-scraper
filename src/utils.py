@@ -5,7 +5,7 @@ from models.Company import company_column_map
 from functools import wraps
 
 import streamlit as st
-import pandas as pd
+import polars as pl
 
 ALL_KEYWORD = "Todos"
 
@@ -38,109 +38,74 @@ def container(attr_name):
     return decorator
 
 
-def get_discount_percentage(product: Product) -> float:
-    if product.original_price > 0:
-        return ((product.original_price - product.final_price) / product.original_price) * 100
-    return 0
-
-
-def format_row(row: pd.Series):
-    if row[product_column_map['is_open']] == 'Não':
-        return ['background-color: #CCCCCC50' for _ in row]
-
-    return []
-
-
-def format_df(df: pd.DataFrame):
-    new_df = df.copy()
-
-    new_df['discount_percentage'] = new_df.apply(
-        lambda row: get_discount_percentage(row), axis=1
-    )
-
-    new_df['is_open'] = new_df['is_closed'].map({True: "Não", False: "Sim"})
-
-    new_df = new_df[[
-        "name",
-        "original_price",
-        "final_price",
-        "discount_percentage",
-        "company_name",
-        "city",
-        "category",
-        "company_url",
-        "image_url",
-        "is_open"
-    ]]
-
-    new_df.fillna("", inplace=True)
-
-    new_df.rename(columns=product_column_map, inplace=True)
-
-    format_dict = {
-        product_column_map['original_price']: "R$ {:.2f}",
-        product_column_map['final_price']: "R$ {:.2f}",
-        product_column_map['discount_percentage']: "{:.0f}%",
-    }
-
-    styler = new_df.style.format(format_dict).apply(format_row, axis=1)
-
-    return new_df, styler
+def format_df(df: pl.DataFrame):
+    return df.select(
+        pl.col("name").alias(product_column_map['name']),
+        pl.col("original_price").alias(product_column_map['original_price']),
+        pl.col("final_price").alias(product_column_map['final_price']),
+        pl.when(pl.col("original_price") > 0).then(
+            (pl.col("original_price") - pl.col("final_price")) /
+            pl.col("original_price") * 100
+        ).otherwise(0).cast(pl.Float32).alias(product_column_map['discount_percentage']),
+        pl.col("company_name").alias(product_column_map['company_name']),
+        pl.col("city").alias(product_column_map['city']),
+        pl.col("category").alias(product_column_map['category']),
+        pl.col("company_url").alias(product_column_map['company_url']),
+        pl.col("image_url").alias(product_column_map['image_url']),
+        pl.col("is_closed").map_elements(lambda x: "Não" if x else "Sim", return_dtype=pl.Utf8).alias(
+            product_column_map['is_open']
+        ),
+    ).fill_null("")
 
 
 def get_rating_string(value: float | None):
-    if value < 0:
+    if value is None or value < 0:
         return ''
     rounded_value = round(value)
     return "★" * rounded_value + " " + str(value)
 
 
-def format_cdf(df: pd.DataFrame):
-    new_df = df.copy()
-
-    # convert all values in rating column to string
-    new_df['rating'] = new_df['rating'].fillna(-1)
-    new_df['rating'] = new_df['rating'].apply(get_rating_string)
-    new_df['is_open'] = new_df['is_closed'].map({True: "Não", False: "Sim"})
-
-    new_df.fillna("", inplace=True)
-
-    new_df = new_df[[
-        "name",
-        "rating",
-        "city",
-        "banners",
-        "company_url",
-        "image_url",
-        "is_open"
-    ]]
-
-    new_df.rename(columns=company_column_map, inplace=True)
-
-    styler = new_df.style.apply(format_row, axis=1)
-
-    return new_df, styler
+def format_cdf(df: pl.DataFrame):
+    return df.select(
+        pl.col("name").alias(company_column_map['name']),
+        pl.col("rating").map_elements(
+            get_rating_string,
+            return_dtype=pl.Utf8
+        ).alias(company_column_map['rating']),
+        pl.col("city").alias(company_column_map['city']),
+        pl.col("banners").alias(company_column_map['banners']),
+        pl.col("company_url").alias(company_column_map['company_url']),
+        pl.col("image_url").alias(company_column_map['image_url']),
+        pl.col("is_closed").map_elements(lambda x: "Sim" if x else "Não").alias(
+            company_column_map['is_open']
+        ),
+    ).fill_null("")
 
 
-def apply_filters(df: pd.DataFrame, filters: dict):
-    new_df = df.copy()
+def apply_filters(df: pl.DataFrame, filters: dict):
+    new_df = df.clone()
+
     for column, value in filters.items():
         if isinstance(value, str):
             if value and value != ALL_KEYWORD:
-                new_df = new_df[new_df[column] == value]
+                new_df = new_df.filter(
+                    pl.col(column).str.contains(value, case=False))
 
         if isinstance(value, list):
             if len(value) > 0:
-                new_df = new_df[new_df[column].apply(
-                    lambda x: any(item in value for item in x) if isinstance(x, list) else x in value)]
+                col_type = new_df.schema[column]
+
+                if col_type == pl.Utf8:
+                    new_df = new_df.filter(pl.col(column).is_in(value))
+                else:
+                    new_df = new_df.filter(pl.col(column).map_elements(
+                        lambda x: any(item in value for item in x), return_dtype=pl.Boolean))
 
         if isinstance(value, tuple):
             if len(value) != 2:
                 raise ValueError("Tuple filter must have 2 values")
 
-            new_df = new_df[
-                (new_df[column] >= value[0]) &
-                (new_df[column] <= value[1])
-            ]
+            new_df = new_df.filter(
+                pl.col(column).is_between(value[0], value[1]))
 
     return new_df

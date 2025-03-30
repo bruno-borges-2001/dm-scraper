@@ -36,7 +36,8 @@ hiddenimports=[
     'selenium.webdriver.chrome',
     'selenium.webdriver.chrome.service',
     'selenium.webdriver.chrome.options',
-    'pandas'
+    'pandas',
+    'polars',
 ]
 
 block_cipher = None
